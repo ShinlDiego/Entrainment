@@ -117,40 +117,6 @@ class cntReader():
 
         return DATA
 
-    def discardBad(self,epoch):
-        
-        picks = ['R1', 'R2', 'R3', 'R4', 'R5',
-                'L1', 'L2', 'L3', 'L4', 'L5']
-
-        epoch_ = epoch.copy()
-        picked = epoch_.pick(picks)
-
-        print('start auto rejection')
-
-        # maximum number of bad sensors in a non-rejected trial
-        n_interpolates = np.array([1,2,3])
-        # ρ the maximum number of sensors that can be interpolated
-        consensus_percs = np.linspace(0.2, 0.8, 5)
-        
-        ar = AutoReject(n_interpolates, consensus_percs,picks=picks,cv=8,
-                thresh_method='bayesian_optimization', random_state=42)
-        ar.fit(picked)
-
-        clean, reject_log = ar.transform(picked, return_log=True)
-        reject_plot = reject_log.plot(orientation='horizontal',show=False)
-
-        subFolder = self.dropFolder+os.sep+self.subName
-        if os.path.exists(subFolder) is False:
-            os.makedirs(subFolder)
-
-        this_drop_file = picked._filename.split('/')
-        this_drop_file = this_drop_file[-2].split('.')[0]+'_'+this_drop_file[-1]
-
-        plt.title(this_drop_file)
-        reject_plot.savefig('%s/%s.png'%(subFolder,this_drop_file), dpi=400, format='png')
-
-        return clean,reject_log
-
     def correctEvent(self,raw):
 
         events, event_dict = mne.events_from_annotations(raw)
@@ -164,7 +130,7 @@ class cntReader():
         valid_event[:, 0] = onset[:len(valid_event)]
 
         # 修正了trigger 位置之后只取任务event
-        valid_dict = {k: v for k, v in valid_dict.items() if int(k) < 100}
+        valid_dict = {k: v for k, v in valid_dict.items() if int(k) <= 120}
         valid_event =  np.stack([e for e in valid_event if e[-1] in [*valid_dict.values()]])
 
         return valid_dict, valid_event
@@ -175,13 +141,9 @@ class cntReader():
         # 把符合条件的event取出来
         Events = []
         
-        ssevp_dict = {k: v for k, v in valid_dict.items() if int(k) > 40}
+        ssevp_dict = {k: v for k, v in valid_dict.items() if int(k) <= 120}
         task_events =  [e for e in valid_event if e[-1] in [*ssevp_dict.values()]]
         Events.append(('ssvep', task_events, ssevp_dict))
-            
-        wn_dict = {k: v for k, v in valid_dict.items() if int(k) <= 40}
-        task_events = [e for e in valid_event if e[-1] in [*wn_dict.values()]]
-        Events.append(('wn',task_events,wn_dict))
 
         return Events
 
@@ -234,8 +196,6 @@ class datasetMaker():
         wholeSet = []
         dataList = sorted(dataList)
 
-        STI = self.readSTI('WN_60HZ.mat')
-
         for filename in tqdm(dataList):
             
             subName = filename.split('.')[0]
@@ -244,24 +204,18 @@ class datasetMaker():
             path = os.path.join(self.curryAdd, filename)
             with open(path, "rb") as fp:
                 sessions = pickle.load(fp)
-            ssvep,wn = [],[]
+            ssvep = []
             for session in sessions:
                 tag,X,y,chnNames = session
                 if tag == 'ssvep':
                     ssvep.append(session)
-                elif tag == 'wn':
-                    wn.append(session)
 
 
             ssvep = [np.concatenate([data[1] for data in ssvep],axis=0),
                       np.hstack([data[2] for data in ssvep])]
 
-            wn = [np.concatenate([data[1] for data in wn],axis=0),
-                     np.hstack([data[2] for data in wn])]
-
             sub = dict(
                 ssvep = ssvep,
-                wn = wn,
                 channel = chnNames,
                 name = subName,
             )
@@ -278,9 +232,9 @@ class datasetMaker():
 
 if __name__ == '__main__':
 
-    exp = 'offline'
-    winLEN = 1
-    srate = 250
+    exp = 'exp-1'
+    winLEN = 2
+    srate = 500
     
     curryMaker = datasetMaker(exp=exp, winLEN=winLEN,
                               srate=srate)
