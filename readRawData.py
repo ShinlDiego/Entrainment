@@ -233,7 +233,7 @@ class datasetMaker():
 if __name__ == '__main__':
 
     exp = 'exp-1'
-    winLEN = 2
+    winLEN = 5
     srate = 500
     
     curryMaker = datasetMaker(exp=exp, winLEN=winLEN,

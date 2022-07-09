@@ -33,10 +33,13 @@ for sub in tqdm(wholeset):
     recorder = recordModule(sub=subName, srate=srate,exp=expName+os.sep+subExp,chn=picks)
 
     # record raw EEG
-    recorder.recordEEG(X,y)
+    # recorder.recordEEG(X,y)
 
-    freqz, F_S = returnPSD(X, srate=srate)
-    recorder.recordSpectral(freqz, F_S, y)
+    # freqz, F_S = returnPSD(X, srate=srate)
+    # recorder.recordSpectral(freqz, F_S, y)
+
+    snr,freqz = narrow_snr(X,srate=srate)
+    recorder.returnSNR(freqz, snr, y)
 
 
 
